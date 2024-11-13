@@ -1,0 +1,28 @@
+[project]
+name = "model-registry-dapp"
+version = "0.1.0"
+description = "Add your description here"
+dependencies = [
+    "fastapi>=0.115.5",
+    "uvicorn>=0.32.0",
+    "web3>=7.5.0",
+    "pydantic>=2.9.2",
+    "python-dotenv>=1.0.1",
+    "motor>=3.6.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/model_registry_dapp"]
