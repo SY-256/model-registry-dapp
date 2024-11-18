@@ -1,4 +1,4 @@
-const { except } = require("chain");
+const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("ModelRegistry", function () {
@@ -28,20 +28,20 @@ describe("ModelRegistry", function () {
     
             // イベント情報の確認
             const event = receipt.events.find(event => event.event === "ModelRegistered");
-            except(event.args.name).to.equal(name);
-            except(event.args.version).to.equal(version);
-            except(event.args.owner).to.equal(owner.address);
+            expect(event.args.name).to.equal(name);
+            expect(event.args.version).to.equal(version);
+            expect(event.args.owner).to.equal(owner.address);
     
             // モデルIDの生成
             const modelId = await modelRegistry.generateModelId(name, version);
     
             // 登録されたモデルの取得と検証
             const model = await modelRegistry.getModel(modelId);
-            except(model.name).to.equal(name);
-            except(model.version).to.equal(version);
-            except(model.metadataURI).to.equal(metadataURI);
-            except(model.owner).to.equal(owner.address);
-            except(model.isActive).to.equal(true);
+            expect(model.name).to.equal(name);
+            expect(model.version).to.equal(version);
+            expect(model.metadataURI).to.equal(metadataURI);
+            expect(model.owner).to.equal(owner.address);
+            expect(model.isActive).to.equal(true);
         });
     
         it("Should not register the same model twice", async function () {
@@ -53,7 +53,7 @@ describe("ModelRegistry", function () {
             await modelRegistry.registerModel(name, version, metadataURI);
     
             // 2回目の登録が失敗すること確認
-            await except(
+            await expect(
                 modelRegistry.registerModel(name, version, metadataURI)
             ).to.be.revertedWith("Model already exists");
         });
@@ -77,7 +77,7 @@ describe("ModelRegistry", function () {
             const isValid = true;
             const comments = "Good model";
     
-            // バリデーターによる検証
+            // バリデーションデーターによる検証
             const tx = await modelRegistry.connect(validator).validateModel(
                 modelId,
                 isValid,
@@ -87,28 +87,28 @@ describe("ModelRegistry", function () {
 
             // イベントの確認
             const event = receipt.events.find(event => event.event === "ModelValidated");
-            except(event.args.modelId).to.equal(modelId);
-            except(event.args.validator).to.equal(validator.address);
-            except(event.args.isValid).to.equal(isValid);
-            except(event.args.comments).to.equal(comments);
+            expect(event.args.modelId).to.equal(modelId);
+            expect(event.args.validator).to.equal(validator.address);
+            expect(event.args.isValid).to.equal(isValid);
+            expect(event.args.comments).to.equal(comments);
     
             // 検証履歴の確認
             const validations = await modelRegistry.getModelValidations(modelId);
-            except(validations.length).to.equal(1);
-            except(validations[0].validator).to.equal(validator.address);
-            except(validations[0].isValid).to.equal(isValid);
-            except(validations[0].comments).to.equal(comments);
+            expect(validations.length).to.equal(1);
+            expect(validations[0].validator).to.equal(validator.address);
+            expect(validations[0].isValid).to.equal(isValid);
+            expect(validations[0].comments).to.equal(comments);
         });
     
         it("Should not allow owner to validate their own model", async function () {
-            await except(
+            await expect(
                 modelRegistry.validateModel(modelId, true, "Self validation")
             ).to.be.revertedWith("Owner cannot validate own model");
         });
     
         it("Should not validate non-existent model", async function () {
             const fakeModelId = ethers.utils.id("fake");
-            await except(
+            await expect(
                 modelRegistry.connect(validator).validateModel(
                     fakeModelId,
                     true,
@@ -144,18 +144,18 @@ describe("ModelRegistry", function () {
     
             // イベントの確認
             const event = receipt.events.find(event => event.event === "ModelUpdated");
-            except(event.args.modelId).to.equal(modelId);
-            except(event.args.version).to.equal(newVersion);
-            except(event.args.metadataURI).to.equal(newMetadataURI);
+            expect(event.args.modelId).to.equal(modelId);
+            expect(event.args.version).to.equal(newVersion);
+            expect(event.args.metadataURI).to.equal(newMetadataURI);
     
             // 更新されたモデルの確認
             const model = await modelRegistry.getModel(modelId);
-            except(model.version).to.equal(newVersion);
-            except(model.metadataURI).to.equal(newMetadataURI);
+            expect(model.version).to.equal(newVersion);
+            expect(model.metadataURI).to.equal(newMetadataURI);
         });
     
         it("Should not allow non-owner to update model", async function () {
-            await except(
+            await expect(
                 modelRegistry.connect(addr2).updateModel(
                     modelId,
                     "2.0.0",
@@ -173,13 +173,13 @@ describe("ModelRegistry", function () {
 
             // ユーザーのモデル一覧を取得
             const userModels = await modelRegistry.getUserModels(owner.address);
-            except(userModels.length).to.equal(2);
+            expect(userModels.length).to.equal(2);
     
             // 各モデルの情報を確認
             const model1 = await modelRegistry.getModel(userModels[0]);
             const model2 = await modelRegistry.getModel(userModels[1]);
-            except(model1.name).to.equal("Model1");
-            except(model2.name).to.equal("Model2");
+            expect(model1.name).to.equal("Model1");
+            expect(model2.name).to.equal("Model2");
         });
     });
 });
