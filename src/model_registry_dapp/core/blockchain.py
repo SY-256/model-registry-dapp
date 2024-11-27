@@ -12,16 +12,22 @@ class BlockchainClient:
     def __init__(self):
         self.w3 = Web3(Web3.HTTPProvider(settings.WEB3_PROVIDER_URI))
         self.contract: Contract | None = None
-        self._load_contract()
+        try:
+            self._load_contract()
+        except Exception as e:
+            print(f"Warning: Contract initialization failed: {e}")
+            print("Some functionality may be limited untill a contract address is provided.")
 
     def _load_contract(self) -> None:
         if not settings.CONTRACT_ADDRESS:
+            print("Warning: CONTRACT_ADDRESS not set. Contract functionality will be limited.")
             return
         
         # コントラクトのABIを読み込む
         contract_path = Path("artifacts/contracts/ModelRegistry.sol/ModelRegistry.json")
         if not contract_path.exists():
-            raise FileNotFoundError("Contract artifact not found")
+            print("Warning: Contract artifact not found. Please compile the contract first.")
+            return
         
         with open(contract_path) as f:
             contract_json = json.load(f)
@@ -30,10 +36,14 @@ class BlockchainClient:
             address=settings.CONTRACT_ADDRESS,
             abi=contract_json["abi"]
         )
+    
+    def is_contract_initialized(self) -> bool:
+        """コントラクトが初期化されているかどうかを確認"""
+        return self.contract is not None
 
     async def register_model(self, name: str, version: str, metadata_uri: str, private_key: str ) -> dict:
         if not self.contract:
-            raise ValueError("Contract not initialized")
+            raise ValueError("Contract not initialized. Please set CONTRACT_ADDRESS in .env")
         
         account = self.w3.eth.account.from_key(private_key)
 

@@ -19,6 +19,7 @@ aiosignal==1.3.1
 annotated-types==0.7.0
     # via pydantic
 anyio==4.6.2.post1
+    # via httpx
     # via starlette
     # via watchfiles
 attrs==24.2.0
@@ -26,6 +27,8 @@ attrs==24.2.0
 bitarray==3.0.0
     # via eth-account
 certifi==2024.8.30
+    # via httpcore
+    # via httpx
     # via requests
 charset-normalizer==3.4.0
     # via requests
@@ -71,24 +74,35 @@ frozenlist==1.5.0
     # via aiohttp
     # via aiosignal
 h11==0.14.0
+    # via httpcore
     # via uvicorn
 hexbytes==1.2.1
     # via eth-account
     # via eth-rlp
     # via web3
+httpcore==1.0.7
+    # via httpx
 httptools==0.6.4
     # via uvicorn
+httpx==0.27.2
 idna==3.10
     # via anyio
+    # via httpx
     # via requests
     # via yarl
+iniconfig==2.0.0
+    # via pytest
 motor==3.6.0
     # via model-registry-dapp
 multidict==6.1.0
     # via aiohttp
     # via yarl
+packaging==24.2
+    # via pytest
 parsimonious==0.10.0
     # via eth-abi
+pluggy==1.5.0
+    # via pytest
 propcache==0.2.0
     # via yarl
 pycryptodome==3.21.0
@@ -106,6 +120,9 @@ pydantic-settings==2.6.1
     # via model-registry-dapp
 pymongo==4.9.2
     # via motor
+pytest==8.3.3
+    # via pytest-asyncio
+pytest-asyncio==0.24.0
 python-dotenv==1.0.1
     # via model-registry-dapp
     # via pydantic-settings
@@ -123,6 +140,7 @@ rlp==4.0.1
     # via eth-rlp
 sniffio==1.3.1
     # via anyio
+    # via httpx
 starlette==0.41.2
     # via fastapi
 toolz==1.0.0
