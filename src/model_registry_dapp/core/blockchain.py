@@ -1,4 +1,5 @@
 import json
+import logging
 
 from web3 import Web3
 from web3.contract import Contract
@@ -7,6 +8,7 @@ from pathlib import Path
 from ..config.settings import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 class BlockchainClient:
     def __init__(self):
@@ -15,6 +17,7 @@ class BlockchainClient:
         try:
             self._load_contract()
         except Exception as e:
+            logger.warning(f"Contract initialization failed: {e}")
             print(f"Warning: Contract initialization failed: {e}")
             print("Some functionality may be limited untill a contract address is provided.")
 
@@ -36,10 +39,37 @@ class BlockchainClient:
             address=settings.CONTRACT_ADDRESS,
             abi=contract_json["abi"]
         )
+
+    def _convert_initialized(self, hex_string: str) -> bytes:
+        """16進数文字列をbytes32に変換"""
+        # 0xプレフィックスを削除し、32バイトに調整
+        clean_hex = hex_string.replace('0x', '').rjust(64, '0')
+        return bytes.fromhex(clean_hex)
     
     def is_contract_initialized(self) -> bool:
         """コントラクトが初期化されているかどうかを確認"""
         return self.contract is not None
+    
+    async def get_model(self, model_id: str) -> dict:
+        if not self.is_contract_initialized():
+            raise ValueError("Contract not initialized")
+        
+        try:
+            # 16進数文字列をbytes32に変換
+            model_id_bytes = self._convert_initialized(model_id)
+            model = self.contract.functions.getModel(model_id_bytes).call()
+            # 基本的なモデルデータを返す（テスト用）
+            return {
+                "name": model[0],
+                "version": model[1],
+                "metadata_uri": model[2],
+                "owner": model[3],
+                "timestamp": model[4],
+                "is_active": model[5]
+            }
+        except Exception as e:
+            logger.error(f"Error in get_model: {str(e)}")
+            raise
 
     async def register_model(self, name: str, version: str, metadata_uri: str, private_key: str ) -> dict:
         if not self.contract:
@@ -56,16 +86,17 @@ class BlockchainClient:
             'from': account.address,
             'gas': 2000000,
             'gasPrice': self.w3.eth.gas_price,
-            'nonce': self.w3.eth.get_trabsaction_count(account.address),
+            'nonce': self.w3.eth.get_transaction_count(account.address),
         })
 
         # トランザクションの署名と送信
         signed_tx = self.w3.eth.account.sign_transaction(tx, private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
 
-        # イベントおからmodel_idを取得
-        model_id = receipt['logs'][0]['topics'][1].hex()
+        # イベントからmodel_idを取得
+        event = self.contract.events.ModelRegistered().process_receipt(receipt)[0]
+        model_id = event['args']['modelId'].hex()
 
         return {
             "model_id": model_id,

@@ -17,6 +17,9 @@ class ModelResponse(ModelBase):
     is_active: bool
     transaction_hash: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
 class ValidationCreate(BaseModel):
     is_valid: bool
     comments: str

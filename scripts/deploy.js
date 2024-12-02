@@ -1,12 +1,19 @@
 const hre = require("hardhat");
 
 async function main() {
+    // アカウントの取得
+    const [deployer] = await hre.ethers.getSigners();
+    console.log("Deploying contracts with the account: ", deployer.address);
+    
     // コンストラクトのデプロイ
     const ModelRegistry = await hre.ethers.getContractFactory("ModelRegistry");
+    console.log("Deploying ModelRegistry...");
+
     const modelRegistry = await ModelRegistry.deploy();
     await modelRegistry.deployed();
 
-    console.log("ModelRegistry deployed to:". modelRegistry.address);
+    // const deployedAddress = await modelRegistry.getAddress()
+    console.log("ModelRegistry deployed to:", modelRegistry.address);
 }
 
 main()
