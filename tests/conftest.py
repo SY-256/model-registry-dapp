@@ -32,18 +32,6 @@ def mock_blockchain_client(monkeypatch):
             "is_active": True
         }
     
-    # get_modelの戻り値を設定
-    # mock_get_model = AsyncMock()
-    # # サンプルモデルデータ
-    # mock_get_model.return_value = {
-    #     "name": "TestModel",
-    #     "version": "1.0.0",
-    #     "metadata_uri": "ipfs://test",
-    #     "owner": "0x1234567890123456789012345678901234567890",
-    #     "timestamp": 1637000000,
-    #     "is_active": True
-    # }
-
     mock_client.get_model = mock_get_model
 
     async def mock_register_model(*args, **kwargs):
@@ -54,15 +42,6 @@ def mock_blockchain_client(monkeypatch):
         }
     
     mock_client.register_model = mock_register_model
-
-    # # AsyncMockを使用して非同期メソッドをモック
-    # mock_client.register_model = AsyncMock(return_value={
-    #     "model_id": "0x1234567890123456789012345678901234567890123456789012345678901234",
-    #     "transaction_hash": "0x9876543210987654321098765432109876543210987654321098765432109876",
-    #     "block_number": 1
-    # })
-
-    # mock_client.get_model = AsyncMock(return_value=sample_model)
 
     # グローバルなblockchain_clientをモックで置き換え
     monkeypatch.setattr("model_registry_dapp.api.routes.blockchain_client", mock_client)
