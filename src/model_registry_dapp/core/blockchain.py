@@ -26,19 +26,32 @@ class BlockchainClient:
             print("Warning: CONTRACT_ADDRESS not set. Contract functionality will be limited.")
             return
         
-        # コントラクトのABIを読み込む
-        contract_path = Path("artifacts/contracts/ModelRegistry.sol/ModelRegistry.json")
-        if not contract_path.exists():
-            print("Warning: Contract artifact not found. Please compile the contract first.")
-            return
+        try:
+            # コントラクトのABIを読み込む
+            contract_path = Path("artifacts/contracts/ModelRegistry.sol/ModelRegistry.json")
+            if not contract_path.exists():
+                print("Warning: Contract artifact not found. Please compile the contract first.")
+                return
         
-        with open(contract_path) as f:
-            contract_json = json.load(f)
+            with open(contract_path) as f:
+                contract_json = json.load(f)
 
-        self.contract = self.w3.eth.contract(
-            address=settings.CONTRACT_ADDRESS,
-            abi=contract_json["abi"]
-        )
+            # デバッグ用ログを追加
+            logger.info(f"Loading contract at address: {settings.CONTRACT_ADDRESS}")
+            
+            
+            # コントラクトアドレスを正規化
+            contract_address = Web3.to_checksum_address(settings.CONTRACT_ADDRESS)
+            
+            self.contract = self.w3.eth.contract(
+                address=contract_address,
+                abi=contract_json["abi"]
+            )
+
+            logger.info("Contract loaded successfully")
+        except Exception as e:
+            logger.error(f"Error loading contract: {e}")
+            raise
 
     def _convert_initialized(self, hex_string: str) -> bytes:
         """16進数文字列をbytes32に変換"""
@@ -75,48 +88,77 @@ class BlockchainClient:
         if not self.contract:
             raise ValueError("Contract not initialized. Please set CONTRACT_ADDRESS in .env")
         
-        account = self.w3.eth.account.from_key(private_key)
+        try:
+            logger.info(f"Attempting to register model: {name} v{version}")
+            account = self.w3.eth.account.from_key(private_key)
 
-        # トランザクションの構築
-        tx = self.contract.functions.registerModel(
-            name,
-            version,
-            metadata_uri
-        ).build_transaction({
-            'from': account.address,
-            'gas': 2000000,
-            'gasPrice': self.w3.eth.gas_price,
-            'nonce': self.w3.eth.get_transaction_count(account.address),
-        })
+            # モデルIDを生成
+            model_id = self.contract.functions.generateModelId(
+                name,
+                version
+            ).call({'from': account.address})
+            logger.info(f"Generated model ID: {model_id.hex()}")
 
-        # トランザクションの署名と送信
-        signed_tx = self.w3.eth.account.sign_transaction(tx, private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            # トランザクションの構築
+            tx = self.contract.functions.registerModel(
+                name,
+                version,
+                metadata_uri
+            ).build_transaction({
+                'from': account.address,
+                'gas': 300000,
+                'maxFeePerGas': self.w3.eth.gas_price,
+                'maxPriorityFeePerGas': self.w3.eth.gas_price,
+                'nonce': self.w3.eth.get_transaction_count(account.address),
+            })
 
-        # イベントからmodel_idを取得
-        event = self.contract.events.ModelRegistered().process_receipt(receipt)[0]
-        model_id = event['args']['modelId'].hex()
+            # トランザクションの署名と送信
+            signed_tx = self.w3.eth.account.sign_transaction(tx, private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
 
-        return {
-            "model_id": model_id,
-            "transaction_hash": receipt['transactionHash'].hex(),
-            'block_number': receipt['blockNumber']
-        }
+            # イベントからmodel_idを取得
+            event = self.contract.events.ModelRegistered().process_receipt(receipt)[0]
+            model_id = event['args']['modelId']
+
+            # generatrateModelIdを呼び出してmodel_idを生成
+            # model_id = self.contract.functions.generateModelId(name, version).call()
+
+            # トランザクションの完了を待つ
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            logger.info(f"Transaction confirmed in block {receipt['blockNumber']}")
+
+            return {
+                "model_id": model_id.hex(),
+                "transaction_hash": receipt['transactionHash'].hex(),
+                'block_number': receipt['blockNumber']
+            }
+        except Exception as e:
+            logger.error(f"Error is register_model: {e}")
+            raise
     
     async def get_model(self, model_id: str) -> dict:
         if not self.contract:
             raise ValueError("Contract not initialized")
         
-        model = self.contract.functions.getModel(model_id).call()
+        try:
+            # 16進数文字列をbyte32に変換
+            if model_id.startswith('0x'):
+                model_id = model_id[2:]
+            model_id_bytes = bytes.fromhex(model_id.zfill(64))
+        
+            model = self.contract.functions.getModel(model_id_bytes).call()
 
-        return {
-            "name": model[0],
-            "version": model[1],
-            "metadata_url": model[2],
-            "owner": model[3],
-            "timestamp": model[4],
-            "is_active": model[5]
-        }
+            return {
+                "name": model[0],
+                "version": model[1],
+                "metadata_uri": model[2],
+                "owner": model[3],
+                "timestamp": model[4],
+                "is_active": model[5]
+            }
+        except Exception as e:
+            logger.error(f"Error in get_model: {e}", exc_info=True)
+            raise
     
 blockchain_client = BlockchainClient()
