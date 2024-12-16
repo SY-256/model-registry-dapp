@@ -10,7 +10,7 @@ export const api = {
 
     async getModel(modelId) {
         const response = await axios.get(`${API_BASE_URL}/models/${modelId}`);
-        return response;
+        return response.data;
     },
 
     async getContractStatus() {
