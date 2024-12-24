@@ -28,6 +28,28 @@ export default function App() {
     loadContractStatus();
   }, []);
 
+  // コンポーネントマウント時にデータを取得
+  const fetchInitialData = async () => {
+    try {
+      // コンストラクタの状態を取得
+      const status = await api.getContractStatus();
+      setContractStatus(status);
+
+      // 登録済みモデルを取得
+      if (status.contract_initialized) {
+        const models = await api.getModels();
+        setRegisteredModels(models);
+      }
+    } catch (err) {
+      console.error("Error fetching initial data:", err);
+      toast.error("Failed to load initial data");
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
   const loadContractStatus = async () => {
     try {
       console.log("Fetching contract status...");
@@ -135,7 +157,7 @@ export default function App() {
   };
 
   // フィルタリングと検索ロジック
-  const filteredModel = registeredModels
+  const filteredModels = registeredModels
     .filter((model) => {
       const matchesSearch = model.name
         .toLowerCase()
@@ -147,9 +169,9 @@ export default function App() {
     .sort((a, b) => {
       switch (sortBy) {
         case "newest":
-          return new Data(b.timestamp) - new Data(a.timestamp);
+          return new Date(b.timestamp) - new Date(a.timestamp);
         case "oldest":
-          return new Data(a.timestamp) - new Data(b.timestamp);
+          return new Date(a.timestamp) - new Date(b.timestamp);
         case "name":
           return a.name.localeCompare(b.name);
         default:
@@ -159,7 +181,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
-      {/* トースト通知のコンテナ */}
       <Toaster position="top-right" />
 
       <div className="relative py-3 sm:max-w-xl sm:mx-auto">
@@ -171,7 +192,6 @@ export default function App() {
                   Model Registry
                 </h1>
 
-                {/* Contract Status */}
                 {contractStatus && (
                   <div className="mb-8 p-4 bg-gray-50 rounded-lg">
                     <h2 className="text-lg font-semibold mb-2">
@@ -186,109 +206,7 @@ export default function App() {
                     </p>
                   </div>
                 )}
-                {/* Registered Models */}
-                {registeredModels.length > 0 && (
-                  <div className="mt-8">
-                    <h2 className="text-lg font-semibold mb-4">
-                      Registered Models
-                    </h2>
-                    <div className="space-y-4">
-                      {registeredModels.map((model) => (
-                        <div key={model.model_id} className="card bg-gray-50">
-                          <h3 className="font-semibold">
-                            {model.name} {model.version && `v${model.version}`}
-                          </h3>
-                          {model.model_id && (
-                            <p className="text-sm text-gray-600">
-                              ID: {model.model_id}
-                            </p>
-                          )}
-                          {model.metadata_uri && (
-                            <p className="text-sm text-gray-600">
-                              URI: {model.metadata_uri}
-                            </p>
-                          )}
-                          <button
-                            onClick={() => fetchModelDetails(model.model_id)}
-                            className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                          >
-                            View Details
-                          </button>
-                          {/* <pre className="text-xs mt-2 text-gray-500">
-                            {JSON.stringify(model, null, 2)}
-                          </pre> */}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
-                {/* ボタンのローディング状態を改善 */}
-                <button
-                  type="submit"
-                  className="btn-primary w-full flex items-center justify-center space-x-2"
-                  disabled={loading}
-                >
-                  {loading && <Spinner />}
-                  <span>{loading ? "Registering..." : "Register Model"}</span>
-                </button>
-
-                {/* モデル一覧のスケルトンローディング */}
-                {loading && !error && (
-                  <div className="mt-8 space-y-4">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* モデル詳細のモーダル */}
-                {selectedModel && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="bg-white rounded-lg p-6 max-w-lg w-full m-4">
-                      <h2 className="text-xl font-semibold mb-4">
-                        Model Details
-                      </h2>
-                      <button
-                        onClick={() => setSelectedModel(null)}
-                        className="text-gray-500 hover:text-gray-700"
-                      >
-                        <span className="sr-only">Close</span>
-                        <svg
-                          className="h-6 w-6"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                      {/* <div className="space-y-2">
-                        <p><span className="font-semibold">Name:</span> {selectedModel.name}</p>
-                        <p><span className="font-semibold">Version:</span> {selectedModel.version}</p>
-                        <p><span className="font-semibold">Metadata URI:</span> {selectedModel.metadata_uri}</p>
-                        <p><span className="font-semibold">Owner:</span> {selectedModel.owner}</p>
-                        <p><span className="font-semibold">Active:</span> {selectedModel.is_active ? 'Yes' : 'No'}</p>
-                        <p><span className="font-semibold">Created:</span> {new Date(selectedModel.timestamp * 1000).toLocaleString()}</p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedModel(null)}
-                        className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-                      >
-                        Close
-                      </button> */}
-                    </div>
-                  </div>
-                )}
-                {/* Registration Form */}
                 <form onSubmit={validateSubmit(onSubmit)} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
@@ -365,14 +283,14 @@ export default function App() {
 
                   <button
                     type="submit"
-                    className="btn-primary w-full"
+                    className="btn-primary w-full flex items-center justify-center space-x-2"
                     disabled={loading}
                   >
-                    {loading ? "Registering..." : "Register Model"}
+                    {loading && <Spinner />}
+                    <span>{loading ? "Registering..." : "Register Model"}</span>
                   </button>
                 </form>
 
-                {/* エラーメッセージ */}
                 {error && (
                   <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-lg">
                     {error}
@@ -382,7 +300,6 @@ export default function App() {
                 {registeredModels.length > 0 && (
                   <div className="mt-8">
                     <div className="mb-4 space-y-4">
-                      {/* 検索バー */}
                       <div>
                         <input
                           type="text"
@@ -393,7 +310,6 @@ export default function App() {
                         />
                       </div>
 
-                      {/* フィルターとソートのコントロール */}
                       <div className="flex space-x-4">
                         <select
                           className="input-field"
@@ -403,6 +319,7 @@ export default function App() {
                           <option value="">All Versions</option>
                           <option value="1.0">Version 1.0.x</option>
                           <option value="2.0">Version 2.0.x</option>
+                          <option value="3.0">Version 3.0.x</option>
                         </select>
 
                         <select
@@ -417,7 +334,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* モデルリストの表示を更新 */}
                     <div className="space-y-4">
                       {filteredModels.length > 0 ? (
                         filteredModels.map((model) => (
@@ -461,6 +377,61 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {selectedModel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full m-4 transform transition-all">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Model Details</h2>
+              <button
+                onClick={() => setSelectedModel(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="sr-only">Close</span>
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-2">
+              <p>
+                <span className="font-semibold">Name:</span>{" "}
+                {selectedModel.name}
+              </p>
+              <p>
+                <span className="font-semibold">Version:</span>{" "}
+                {selectedModel.version}
+              </p>
+              <p>
+                <span className="font-semibold">Metadata URI:</span>{" "}
+                {selectedModel.metadata_uri}
+              </p>
+              <p>
+                <span className="font-semibold">Owner:</span>{" "}
+                {selectedModel.owner}
+              </p>
+              <p>
+                <span className="font-semibold">Active:</span>{" "}
+                {selectedModel.is_active ? "Yes" : "No"}
+              </p>
+              <p>
+                <span className="font-semibold">Created:</span>{" "}
+                {new Date(selectedModel.timestamp * 1000).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

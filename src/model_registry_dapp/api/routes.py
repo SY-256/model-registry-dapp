@@ -87,3 +87,21 @@ async def get_model(model_id: str):
         logger.error(f"Unexpected error in get_model: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
+@router.get("/models/", response_model=List[ModelResponse])
+async def get_models():
+    """すべての登録済みモデルを取得"""
+    try:
+        if not blockchain_client.is_contract_initialized():
+            raise HTTPException(
+                status_code=503,
+                detail="Smart contract not initialized"
+            )
+        
+        # models = await blockchain_client.get_all_models()
+        return []
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in get_models: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    

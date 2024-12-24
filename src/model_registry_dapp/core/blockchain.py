@@ -160,5 +160,42 @@ class BlockchainClient:
         except Exception as e:
             logger.error(f"Error in get_model: {e}", exc_info=True)
             raise
+
+    async def get_all_models(self) -> list:
+        """すべての登録済みモデルを取得"""
+        if not self.is_contract_initialized():
+            raise ValueError("Contract not initialized")
+        
+        try:
+
+            # 登録されているモデルの配列を取得
+            registered_models = []
+
+            # ユーザーのモデル一覧を取得
+            if self.contract:
+                # モデルIDの一覧を取得
+                model_count = await self.contract.functions.modelCount().call()
+                logger.info(f"Found {model_count} models")
+
+            # 各モデルの情報を取得
+            for i in range(model_count):
+                model_id = i + 1
+                try:
+                    model = await self.contract.functions.getModel(model_id).call()
+                    registered_models.append({
+                        "name": model[0],
+                        "version": model[1],
+                        "metadata_uri": model[2],
+                        "owner": model[3],
+                        "timestamp": model[4],
+                        "is_active": model[5]
+                    })
+                except Exception as e:
+                    logger.error(f"Error getting model {model_id}: {e}")
+                    continue
+            return registered_models
+        except Exception as e:
+            logger.error(f"Error in get_all_models: {e}")
+            raise
     
 blockchain_client = BlockchainClient()

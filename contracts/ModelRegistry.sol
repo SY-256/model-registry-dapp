@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 contract ModelRegistry {
+    // モデルの構造体
     struct Model {
         string name;
         string version;
@@ -11,6 +12,7 @@ contract ModelRegistry {
         bool isActive;
     }
 
+    // モデルの検証情報の構造体
     struct ValidationInfo {
         address validator;
         uint256 timestamp;
@@ -18,10 +20,13 @@ contract ModelRegistry {
         string comments;
     }
 
+    // ストレージ
     mapping(bytes32 => Model) public models;
     mapping(bytes32 => ValidationInfo[]) public validations;
     mapping(address => bytes32[]) public userModels;
+    uint256 public modelCount;
 
+    // イベント
     event ModelRegistered(
         bytes32 indexed modelId,
         string name,
@@ -42,15 +47,18 @@ contract ModelRegistry {
         string metadataURI
     );
 
+    // モディファイア
     modifier onlyModelOwner(bytes32 modelId) {
         require(models[modelId].owner == msg.sender, "Not the model owner");
         _;
     }
 
+    // モデルIDを生成する関数
     function generateModelId(string memory name, string memory version) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(name, version));
     }
 
+    // モデルを登録する関数
     function registerModel(
         string memory name,
         string memory version,
@@ -69,11 +77,13 @@ contract ModelRegistry {
         });
 
         userModels[msg.sender].push(modelId);
+        modelCount++;
 
         emit ModelRegistered((modelId), name, version, msg.sender);
         return modelId;
     }
 
+     // モデル情報を更新する関数
     function updateModel(
         bytes32 modelId,
         string memory newVersion,
@@ -87,6 +97,7 @@ contract ModelRegistry {
         emit ModelUpdated(modelId, newVersion, newMetadataURI);
     }
 
+    // モデルを検証する関数
     function validateModel(
         bytes32 modelId,
         bool isValid,
@@ -107,15 +118,18 @@ contract ModelRegistry {
         emit ModelValidated(modelId, msg.sender, isValid, comments);
     }
 
+    // モデル情報を取得する関数
     function getModel(bytes32 modelId) public view returns (Model memory) {
         require(models[modelId].timestamp > 0, "Model does not exist");
         return models[modelId];
     }
 
+    // モデルの検証情報を取得する関数
     function getModelValidations(bytes32 modelId) public view returns (ValidationInfo[] memory) {
         return validations[modelId];
     }
 
+    // ユーザーのモデル一覧を取得する関数
     function getUserModels(address user) public view returns (bytes32[] memory) {
         return userModels[user];
     }
