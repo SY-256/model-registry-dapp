@@ -9,106 +9,13 @@ import { Spinner } from "./components/Spinners";
 
 export default function App() {
   const [contractStatus, setContractStatus] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    version: "",
-    metadata_uri: "",
-    private_key: "",
-  });
   const [registeredModels, setRegisteredModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
-  const [loadingDetails, setLoadingDeatils] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterVersion, setFilterVersion] = useState("");
   const [sortBy, setSortBy] = useState("newest");
-
-  useEffect(() => {
-    loadContractStatus();
-  }, []);
-
-  // コンポーネントマウント時にデータを取得
-  const fetchInitialData = async () => {
-    try {
-      // コンストラクタの状態を取得
-      const status = await api.getContractStatus();
-      setContractStatus(status);
-
-      // 登録済みモデルを取得
-      if (status.contract_initialized) {
-        const models = await api.getModels();
-        setRegisteredModels(models);
-      }
-    } catch (err) {
-      console.error("Error fetching initial data:", err);
-      toast.error("Failed to load initial data");
-    }
-  };
-
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  const loadContractStatus = async () => {
-    try {
-      console.log("Fetching contract status...");
-      const status = await api.getContractStatus();
-      console.log("Contract status:", status);
-      setContractStatus(status);
-    } catch (err) {
-      setError("Failed to load contract status");
-      console.error(err);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await api.registerModel(formData);
-      console.log("Registeration result:", result);
-
-      // 登録したモデル情報をセット
-      const newModel = {
-        name: formData.name,
-        version: formData.version,
-        metadata_uri: formData.metadata_uri,
-        model_id: result.data.model_id,
-        transaction_hash: result.data.transaction_hash,
-      };
-
-      setRegisteredModels([newModel, ...registeredModels]);
-
-      // 入力フォームを初期化
-      setFormData({
-        name: "",
-        version: "",
-        metadata_uri: "",
-        private_key: "",
-      });
-    } catch (err) {
-      setError(err.response?.data?.detail || "Failed to register model");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // モデル詳細を取得する関数
-  const fetchModelDetails = async (modelId) => {
-    setLoadingDeatils(true);
-    try {
-      const modelDetails = await api.getModel(modelId);
-      setSelectedModel(modelDetails);
-    } catch (err) {
-      console.log("Error fetching model details:", err);
-      setError("Failed to load model details");
-    } finally {
-      setLoadingDeatils(false);
-    }
-  };
 
   const {
     register,
@@ -119,11 +26,32 @@ export default function App() {
     resolver: zodResolver(modelSchema),
   });
 
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        // コントラクトステータスの取得
+        const status = await api.getContractStatus();
+        setContractStatus(status);
+
+        // モデル一覧の取得
+        const models = await api.getModels();
+        console.log("Fetched models:", models);
+        setRegisteredModels(models);
+      } catch (err) {
+        console.error("Error fetching initial data:", err);
+        if (err.response) {
+          console.error("API Error:", err.response.data);
+        }
+        setError("Failed to load initial data");
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
   const onSubmit = async (data) => {
     setLoading(true);
     setError(null);
-
-    // 登録開始のトースト
     const loadingToast = toast.loading("Registering model...");
 
     try {
@@ -131,23 +59,24 @@ export default function App() {
       const newModel = {
         name: data.name,
         version: data.version,
+        metadata_uri: data.metadata_uri,
         model_id: result.model_id,
         transaction_hash: result.transaction_hash,
+        timestamp: Math.floor(Date.now() / 1000),
       };
 
       setRegisteredModels([newModel, ...registeredModels]);
-      reset(); // フォームのリセット
+      reset();
 
-      // 成功時のトースト
       toast.success("Model registered successfully!", {
         id: loadingToast,
       });
     } catch (err) {
+      console.error("Registration error:", err);
       const errorMessage =
         err.response?.data?.detail || "Failed to register model";
       setError(errorMessage);
 
-      // エラー時のトースト
       toast.error(errorMessage, {
         id: loadingToast,
       });
@@ -156,7 +85,21 @@ export default function App() {
     }
   };
 
-  // フィルタリングと検索ロジック
+  const fetchModelDetails = async (modelId) => {
+    try {
+      console.log("Fetching details for model ID:", modelId);
+      if (!modelId) {
+        throw new Error("Model ID is undefined");
+      }
+      const modelDetails = await api.getModel(modelId);
+      console.log("Received model details:", modelDetails);
+      setSelectedModel(modelDetails);
+    } catch (err) {
+      console.error("Error fetching model details:", err);
+      toast.error("Failed to load model details");
+    }
+  };
+
   const filteredModels = registeredModels
     .filter((model) => {
       const matchesSearch = model.name
@@ -164,14 +107,18 @@ export default function App() {
         .includes(searchTerm.toLowerCase());
       const matchesVersion =
         !filterVersion || model.version.includes(filterVersion);
-      return matchesVersion && matchesSearch;
+      return matchesSearch && matchesVersion;
     })
     .sort((a, b) => {
       switch (sortBy) {
         case "newest":
-          return new Date(b.timestamp) - new Date(a.timestamp);
+          const timestampA = a.timestamp || 0;
+          const timestampB = b.timestamp || 0;
+          return timestampB - timestampA;
         case "oldest":
-          return new Date(a.timestamp) - new Date(b.timestamp);
+          const oldTimestampA = a.timestamp || 0;
+          const oldTimestampB = b.timestamp || 0;
+          return oldTimestampA - oldTimestampB;
         case "name":
           return a.name.localeCompare(b.name);
         default:
@@ -319,7 +266,6 @@ export default function App() {
                           <option value="">All Versions</option>
                           <option value="1.0">Version 1.0.x</option>
                           <option value="2.0">Version 2.0.x</option>
-                          <option value="3.0">Version 3.0.x</option>
                         </select>
 
                         <select

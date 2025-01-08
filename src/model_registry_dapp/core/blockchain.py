@@ -167,22 +167,16 @@ class BlockchainClient:
             raise ValueError("Contract not initialized")
         
         try:
+            logger.info("Getting all models from blockchain")
+            logger.info(f"Contract address: {self.contract.address}")
+            model_ids = self.contract.functions.getAllModelIds().call()
 
-            # 登録されているモデルの配列を取得
-            registered_models = []
-
-            # ユーザーのモデル一覧を取得
-            if self.contract:
-                # モデルIDの一覧を取得
-                model_count = await self.contract.functions.modelCount().call()
-                logger.info(f"Found {model_count} models")
-
-            # 各モデルの情報を取得
-            for i in range(model_count):
-                model_id = i + 1
+            models = []
+            for model_id in model_ids:
                 try:
-                    model = await self.contract.functions.getModel(model_id).call()
-                    registered_models.append({
+                    model = self.contract.functions.getModel(model_id).call()
+                    models.append({
+                        "model_id": model_id.hex(),
                         "name": model[0],
                         "version": model[1],
                         "metadata_uri": model[2],
@@ -191,9 +185,11 @@ class BlockchainClient:
                         "is_active": model[5]
                     })
                 except Exception as e:
-                    logger.error(f"Error getting model {model_id}: {e}")
+                    logger.error(f"Error getting model {model_id.hex()}: {e}")
                     continue
-            return registered_models
+            
+            return models
+
         except Exception as e:
             logger.error(f"Error in get_all_models: {e}")
             raise

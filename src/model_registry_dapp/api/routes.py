@@ -91,14 +91,26 @@ async def get_model(model_id: str):
 async def get_models():
     """すべての登録済みモデルを取得"""
     try:
+        logging.info("Fetching all models")
         if not blockchain_client.is_contract_initialized():
+            logger.error("Contract not initialized")
             raise HTTPException(
                 status_code=503,
                 detail="Smart contract not initialized"
             )
-        
-        # models = await blockchain_client.get_all_models()
-        return []
+        try:
+            models = await blockchain_client.get_all_models()
+            logger.info(f"Found {len(models)} models")
+            return models
+        except ValueError as e:
+            logger.error(f"Value error: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Internal server error: {str(e)}"
+            )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
