@@ -21,5 +21,10 @@ export const api = {
     async getContractStatus() {
         const response = await axios.get(`${API_BASE_URL}/status`);
         return response.data;
+    },
+
+    async updateModel(modelId, data) {
+        const response = await axios.put(`${API_BASE_URL}/models/${modelId}`, data);
+        return response.data;
     }
 };
